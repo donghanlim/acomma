@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="a.comma" />
+  <meta name="theme-color" content="#3182f6" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%233182f6' width='180' height='180'/><text x='50%' y='50%' font-size='100' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>a</text></svg>" />
+  
+  <title>a.comma — 꽃 픽업 결제 시스템</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #f4f5f7;
+      --card: #ffffff;
+      --ink: #191f28;
+      --sub: #6b7684;
+      --line: #e5e8eb;
+      --brand: #3182f6;
+      --toss: #0064ff;
+      --ok: #12b76a;
+      --danger: #f04452;
+      --radius: 16px;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+      padding-bottom: 40px;
+    }
+    
+    .container { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+    
+    /* ===== 탭 네비 ===== */
+    .tab-nav {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 0;
+    }
+    .tab-btn {
+      flex: 1; padding: 12px;
+      background: none; border: none;
+      font-size: 13px; font-weight: 600;
+      color: var(--sub); cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .2s;
+    }
+    .tab-btn.active {
+      color: var(--ink);
+      border-bottom-color: var(--brand);
+    }
+    
+    .tab-content { display: none; padding-top: 16px; }
+    .tab-content.show { display: block; }
+    
+    /* ===== 헤더 ===== */
+    header {
+      background: linear-gradient(135deg, #191f28 0%, #333d4b 100%);
+      color: #fff;
+      padding: 28px 16px;
+      margin-bottom: 20px;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    header h1 { font-size: 24px; font-weight: 800; }
+    header p { font-size: 13px; color: rgba(255,255,255,.7); margin-top: 4px; }
+    
+    /* ===== 카드 ===== */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+    .card .desc { font-size: 12px; color: var(--sub); margin-bottom: 14px; }
+    
+    /* ===== 폼 요소 ===== */
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+    .field label .opt { color: var(--sub); font-weight: 400; }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+    }
+    .field input:focus, .field textarea:focus { outline: none; border-color: var(--brand); }
+    .field .hint { font-size: 11px; color: var(--sub); margin-top: 3px; }
+    
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 480px) { .row2 { grid-template-columns: 1fr; } }
+    
+    /* ===== 버튼 ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      width: 100%;
+      transition: filter .15s;
+    }
+    .btn:active { filter: brightness(.93); }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-ghost { background: #f2f4f6; color: var(--ink); }
+    .btn-sm { padding: 8px 12px; font-size: 12px; width: auto; }
+    .btn-danger { background: #fdebec; color: var(--danger); }
+    .btn-success { background: #f0fdf4; color: var(--ok); }
+    .btn-toss { background: var(--toss); color: #fff; }
+    
+    /* ===== QR 섹션 ===== */
+    .qr-box {
+      display: flex;
+      justify-content: center;
+      padding: 16px 0;
+      background: #f9fafb;
+      border-radius: 12px;
+      margin: 12px 0;
+    }
+    .qr-box canvas, .qr-box img {
+      border: 6px solid #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+      max-width: 100%;
+    }
+    
+    /* ===== 결과 링크 ===== */
+    .link-result {
+      background: #f2f4f6;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 12px 0;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .link-result input {
+      flex: 1;
+      border: none;
+      background: none;
+      font-size: 12px;
+      color: var(--sub);
+      font-family: monospace;
+    }
+    .link-result button {
+      padding: 6px 10px;
+      background: var(--brand);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    
+    /* ===== 페이지 목록 ===== */
+    .page-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+    .page-item:last-child { border-bottom: none; }
+    .page-item .info { flex: 1; min-width: 150px; }
+    .page-item .t { font-weight: 700; font-size: 14px; }
+    .page-item .m { font-size: 11px; color: var(--sub); margin-top: 2px; }
+    .page-item .acts { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; }
+    
+    .empty { text-align: center; color: var(--sub); font-size: 13px; padding: 20px 0; }
+    
+    /* ===== 랜딩 페이지 스타일 ===== */
+    .hero {
+      text-align: center;
+      padding: 16px 0;
+    }
+    .hero .emoji { font-size: 32px; }
+    .hero h1 { font-size: 20px; font-weight: 800; margin-top: 6px; }
+    .hero p { font-size: 12px; color: var(--sub); margin-top: 4px; }
+    
+    /* 픽업 코드 입력 */
+    .code-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 12px 0;
+    }
+    .code-row input {
+      width: 48px;
+      height: 56px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 800;
+      border: 1.5px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+    .code-row input:focus { outline: none; border-color: var(--brand); }
+    .code-row.err input { border-color: var(--danger); animation: shake .3s; }
+    @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+    
+    .code-msg {
+      text-align: center;
+      font-size: 12px;
+      color: var(--danger);
+      min-height: 16px;
+      margin-bottom: 8px;
+    }
+    
+    /* 성공 화면 */
+    .success { display: none; text-align: center; }
+    .success.show { display: block; }
+    .success .check {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #e7f7ef;
+      color: var(--ok);
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+    }
+    .success h2 { font-size: 18px; justify-content: center; }
+    .success .slot { font-size: 14px; color: var(--sub); margin-top: 4px; }
+    .success .slot b { color: var(--ink); font-size: 16px; }
+    
+    /* 은행 그리드 */
+    .bank-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .bank {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: left;
+    }
+    .bank:active { background: #f2f4f6; }
+    .bank.sel { border-color: var(--brand); background: #f0f6ff; }
+    .bank .ic {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px; /* iOS 앱 아이콘 스타일 */
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: -0.4px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); /* 밝은 배경(카카오 옐로 등) 윤곽 보정 */
+      font-family: -apple-system, 'SF Pro Display', 'Pretendard', sans-serif;
+    }
+    .bank .ic.w3 { font-size: 10px; }  /* 3글자 워드마크 (SOL, WON, IBK) */
+    .bank .ic.w4 { font-size: 9px; }   /* 4글자 워드마크 (toss) */
+    
+    .notice {
+      font-size: 11px;
+      color: var(--sub);
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+      line-height: 1.6;
+    }
+    
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 32px;
+      transform: translateX(-50%) translateY(20px);
+      background: #191f28;
+      color: #fff;
+      font-size: 13px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all .2s;
+      z-index: 99;
+      max-width: 85vw;
+    }
+    .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+    
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .toggle input { width: 16px; height: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 탭 네비 -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('manager')">관리</button>
+      <button class="tab-btn" onclick="switchTab('landing')">고객 랜딩</button>
+    </div>
+    
+    <!-- ===== 탭 1: 관리 사이트 ===== -->
+    <div id="manager" class="tab-content show">
+      <header>
+        <h1>a.comma</h1>
+        <p>페이지 생성 → QR 발급 → 고객 페이지로 이동</p>
+      </header>
+      
+      <!-- 생성 폼 -->
+      <div class="card">
+        <h2 id="form-title">새 페이지 만들기</h2>
+        <p class="desc">매장 정보 입력 후 생성</p>
+        
+        <div class="field">
+          <label>페이지 이름 *</label>
+          <input type="text" id="f-title" placeholder="예: 플레라플레로 플라워캐빈" maxlength="40" />
+        </div>
+        
+        <div class="row2">
+          <div class="field">
+            <label>은행명 *</label>
+            <input type="text" id="f-bank" placeholder="카카오뱅크" maxlength="20" />
+          </div>
+          <div class="field">
+            <label>예금주 *</label>
+            <input type="text" id="f-holder" placeholder="홍길동" maxlength="20" />
+          </div>
+        </div>
+        
+        <div class="row2">
+          <div class="field">
+            <label>계좌번호 *</label>
+            <input type="text" id="f-account" placeholder="30012345678" inputmode="numeric" maxlength="20" />
+          </div>
+          <div class="field">
+            <label>기본금액 <span class="opt">(선택)</span></label>
+            <input type="number" id="f-amount" placeholder="5000" min="0" />
+          </div>
+        </div>
+        
+        <div class="field">
+          <div class="toggle">
+            <input type="checkbox" id="f-toss" checked />
+            <label for="f-toss" style="margin:0; cursor:pointer;">토스 자동입력</label>
+          </div>
+        </div>
+        
+        <div class="field">
+          <label>네이버 리뷰 링크 <span class="opt">(선택)</span></label>
+          <input type="url" id="f-review" placeholder="https://naver.me/..." />
+        </div>
+        
+        <div class="field">
+          <label>픽업코드 <span class="opt">(선택)</span></label>
+          <textarea id="f-pickups" placeholder="4자리코드,주문명,슬롯번호&#10;0001,주문#1,5&#10;0002,주문#2,7" style="font-size: 11px; font-family: monospace; height: 80px; resize: vertical;"></textarea>
+          <div class="hint">한 줄당 하나. 형식: 코드,주문명,슬롯</div>
+        </div>
+        
+        <button class="btn btn-primary" onclick="createPage()">🎯 페이지 생성</button>
+      </div>
+      
+      <!-- 결과 -->
+      <div class="card" id="result-card" style="display:none;">
+        <h2>✅ 완성!</h2>
+        <div class="qr-box" id="qrbox"></div>
+        <div class="link-result">
+          <input type="text" id="result-url" readonly />
+          <button onclick="copyLink()">복사</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="testLanding()">고객 페이지 테스트</button>
+      </div>
+      
+      <!-- 목록 -->
+      <div class="card">
+        <h2>저장된 페이지</h2>
+        <div id="page-list"></div>
+      </div>
+    </div>
+    
+    <!-- ===== 탭 2: 고객 랜딩 ===== -->
+    <div id="landing" class="tab-content">
+      <div class="hero">
+        <div class="emoji">🌷</div>
+        <h1 id="landing-title">플레라플레로</h1>
+        <p id="landing-account">로드 중...</p>
+      </div>
+      
+      <!-- 픽업 코드 섹션 -->
+      <div class="card" id="pickup-card">
+        <h2>🔐 픽업 확인</h2>
+        <p class="desc">4자리 코드를 입력하면 자동으로 확인됩니다</p>
+        <div class="code-row" id="code-row">
+          <input type="tel" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="one-time-code" />
+          <input type="tel" inputmode="numeric" maxlength="4" pattern="[0-9]*" />
+          <input type="tel" inputmode="numeric" maxlength="4" pattern="[0-9]*" />
+          <input type="tel" inputmode="numeric" maxlength="4" pattern="[0-9]*" />
+        </div>
+        <div class="code-msg" id="code-msg"></div>
+      </div>
+      
+      <!-- 성공 화면 -->
+      <div class="card success" id="success">
+        <div class="check">✓</div>
+        <h2>픽업 준비 완료!</h2>
+        <div class="slot" id="slot-info"></div>
+      </div>
+      
+      <!-- 송금 섹션 -->
+      <div class="card" id="transfer-card">
+        <h2>💸 송금하기</h2>
+        <div class="notice">
+          <strong>은행 선택:</strong> 탭하면 계좌 복사 + 앱이 자동으로 열립니다.<br/>
+          앱이 없으면 <strong>App Store로 자동 이동</strong>합니다.
+        </div>
+        <div class="bank-grid" id="bank-grid"></div>
+        <div class="notice">
+          ⓘ 금액 자동입력은 토스만 지원 (나머지는 계좌만 자동복사)<br/>
+          ⓘ 송금은 각 은행 앱에서 직접 진행<br/>
+          ⓘ 이 페이지는 결제금을 보관하지 않음
+        </div>
+      </div>
+      
+      <!-- 리뷰 섹션 -->
+      <div class="card" id="review-card" style="display:none;">
+        <h2>⭐ 리뷰</h2>
+        <button class="btn btn-success" id="btn-review" target="_blank">리뷰 남기기</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const LS_PAGES = 'acomma_pages';
+    let currentLandingData = null;
+    let editingId = null;
+    
+    // localStorage 사용 가능 여부 확인
+    function canUseStorage() {
+      try {
+        localStorage.setItem('test', 'test');
+        localStorage.removeItem('test');
+        return true;
+      } catch (e) {
+        console.warn('프라이빗 모드 또는 저장소 불가:', e);
+        return false;
+      }
+    }
+    
+    const hasStorage = canUseStorage();
+    
+    // ===== base64url 인코딩 =====
+    const b64url = {
+      enc: (obj) => {
+        const json = JSON.stringify(obj);
+        const bytes = new TextEncoder().encode(json);
+        const b64 = btoa(String.fromCharCode(...bytes));
+        return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+      },
+      dec: (str) => {
+        let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        const bin = atob(b64);
+        const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+        return JSON.parse(new TextDecoder().decode(bytes));
+      }
+    };
+    
+    // ===== 유틸 =====
+    function toast(msg) {
+      const t = $('#toast');
+      t.textContent = msg;
+      t.classList.add('on');
+      clearTimeout(t._h);
+      t._h = setTimeout(() => t.classList.remove('on'), 2200);
+    }
+    
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('show'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      $(`#${tab}`).classList.add('show');
+      event.target.classList.add('active');
+    }
+    
+    // ===== 관리 사이트 =====
+    function readForm() {
+      const title = $('#f-title').value.trim();
+      const bank = $('#f-bank').value.trim();
+      const account = $('#f-account').value.replace(/[^0-9]/g, '');
+      const holder = $('#f-holder').value.trim();
+      
+      if (!title || !bank || !account || !holder) {
+        toast('필수 항목(*)을 모두 입력해주세요');
+        return null;
+      }
+      
+      const pickups = $('#f-pickups').value
+        .split('\n')
+        .map(line => {
+          const [c, l, s] = line.split(',').map(x => (x || '').trim());
+          return /^\d{4}$/.test(c) ? { c, l, s } : null;
+        })
+        .filter(Boolean);
+      
+      return {
+        v: 1,
+        t: title,
+        bn: bank,
+        an: account,
+        ah: holder,
+        amt: parseInt($('#f-amount').value, 10) || 0,
+        toss: $('#f-toss').checked,
+        rv: $('#f-review').value.trim(),
+        pk: pickups,
+        id: editingId || Math.random().toString(36).slice(2, 8),
+      };
+    }
+    
+    function createPage() {
+      const data = readForm();
+      if (!data) return;
+      
+      try {
+        let pages = [];
+        if (hasStorage) {
+          pages = JSON.parse(localStorage.getItem(LS_PAGES) || '[]');
+        }
+        const idx = pages.findIndex(p => p.id === data.id);
+        const rec = {
+          id: data.id,
+          title: data.t,
+          data,
+          createdAt: idx >= 0 ? pages[idx].createdAt : Date.now(),
+          updatedAt: Date.now()
+        };
+        
+        if (idx >= 0) pages[idx] = rec;
+        else pages.unshift(rec);
+        
+        if (hasStorage) {
+          localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+        }
+      } catch (e) {
+        console.error('저장 오류:', e);
+      }
+      
+      editingId = null;
+      $('#form-title').textContent = '새 페이지 만들기';
+      
+      // QR 표시
+      const url = location.origin + location.pathname + '#landing=' + b64url.enc(data);
+      $('#result-url').value = url;
+      const qrbox = $('#qrbox');
+      qrbox.innerHTML = '';
+      
+      try {
+        if (window.QRCode) {
+          new QRCode(qrbox, { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+        } else {
+          throw new Error('QRCode 라이브러리 로드 안됨');
+        }
+      } catch (e) {
+        console.error('QR 생성 오류:', e);
+        qrbox.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">QR 코드 생성 불가<br/>(링크는 정상 작동합니다)</div>';
+      }
+      
+      $('#result-card').style.display = 'block';
+      renderList();
+      toast('✅ 페이지 생성됨');
+      $('#result-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    // clipboard API가 막힌 웹뷰(카톡 인앱 등) 대비 execCommand 폴백
+    function copyText(text) {
+      return navigator.clipboard.writeText(text).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      });
+    }
+
+    function copyLink() {
+      copyText($('#result-url').value).then(() => toast('링크 복사됨'));
+    }
+    
+    function testLanding() {
+      const url = $('#result-url').value;
+      const match = url.match(/landing=([^&]*)/);
+      if (match) {
+        try {
+          currentLandingData = b64url.dec(match[1]);
+          renderLanding();
+          switchTab('landing');
+        } catch (e) {
+          toast('데이터 오류');
+        }
+      }
+    }
+    
+    function renderList() {
+      try {
+        let pages = [];
+        if (hasStorage) {
+          pages = JSON.parse(localStorage.getItem(LS_PAGES) || '[]');
+        }
+        const list = $('#page-list');
+        
+        if (!pages.length) {
+          list.innerHTML = '<div class="empty">아직 생성된 페이지가 없습니다' + (hasStorage ? '' : '<br/>(프라이빗 모드에서는 저장 안됨)') + '</div>';
+          return;
+        }
+        
+        list.innerHTML = pages.map((p, i) => `
+          <div class="page-item">
+            <div class="info">
+              <div class="t">${p.title}</div>
+              <div class="m">${p.data.pk?.length || 0}개 코드 · ${new Date(p.updatedAt).toLocaleDateString('ko-KR')}</div>
+            </div>
+            <div class="acts">
+              <button class="btn btn-ghost btn-sm" onclick="testPage(${i})">테스트</button>
+              <button class="btn btn-ghost btn-sm" onclick="editPage(${i})">수정</button>
+              <button class="btn btn-danger btn-sm" onclick="delPage(${i})">삭제</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error('목록 로드 오류:', e);
+      }
+    }
+    
+    function testPage(idx) {
+      try {
+        let pages = [];
+        if (hasStorage) {
+          pages = JSON.parse(localStorage.getItem(LS_PAGES) || '[]');
+        }
+        currentLandingData = pages[idx].data;
+        renderLanding();
+        switchTab('landing');
+      } catch (e) {
+        toast('페이지 로드 오류');
+        console.error(e);
+      }
+    }
+    
+    function editPage(idx) {
+      try {
+        let pages = [];
+        if (hasStorage) {
+          pages = JSON.parse(localStorage.getItem(LS_PAGES) || '[]');
+        }
+        const p = pages[idx];
+        editingId = p.id;
+        $('#form-title').textContent = '페이지 수정: ' + p.title;
+        $('#f-title').value = p.data.t;
+        $('#f-bank').value = p.data.bn;
+        $('#f-holder').value = p.data.ah;
+        $('#f-account').value = p.data.an;
+        $('#f-amount').value = p.data.amt || '';
+        $('#f-toss').checked = p.data.toss !== false;
+        $('#f-review').value = p.data.rv || '';
+        $('#f-pickups').value = (p.data.pk || []).map(o => [o.c, o.l, o.s].join(',')).join('\n');
+        switchTab('manager');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) {
+        toast('페이지 수정 오류');
+        console.error(e);
+      }
+    }
+    
+    function delPage(idx) {
+      if (!confirm('삭제할까요?')) return;
+      try {
+        let pages = [];
+        if (hasStorage) {
+          pages = JSON.parse(localStorage.getItem(LS_PAGES) || '[]');
+          pages.splice(idx, 1);
+          localStorage.setItem(LS_PAGES, JSON.stringify(pages));
+        }
+        renderList();
+        toast('삭제됨');
+      } catch (e) {
+        toast('삭제 오류');
+        console.error(e);
+      }
+    }
+    
+    // ===== 랜딩 페이지 =====
+    // appId가 있으면: 앱 열기 실패 시 정확한 App Store 페이지로 이동
+    // appId가 없으면: App Store 검색 결과로 이동 (은행명으로 검색)
+    // ===== 랜딩 페이지 =====
+    // 주의: 한국 금융앱 대부분이 보안상 웹 딥링크 scheme을 비활성화함
+    // 따라서 이 코드는 scheme 시도 후 1.2초 내에 App Store로 자동 이동하는 폴백에 의존
+    // 토스만 딥링크 전송 기능 지원
+    const BANKS = [
+      // === 최상위 10대 금융회사 (App Store ID 정밀 폴백, scheme은 참조용) ===
+      // i: 브랜드 워드마크(BI 스타일), bg/fg: 각사 공식 브랜드 컬러 기반
+      { n: '카카오뱅크', c: '카카오뱅크', bg: '#FFCC00', fg: '#3C1E1E', i: 'B', s: 'kakaobank://', appId: '1258016944' },
+      { n: '토스뱅크', c: '토스뱅크', bg: '#0064FF', fg: '#fff', i: 'toss', s: 'supertoss://', appId: '839333328', toss: true },
+      { n: '신한SOL뱅크', c: '신한은행', bg: '#0046FF', fg: '#fff', i: 'SOL', s: 'shinhan-sr-ansimclick://', appId: '357484932' },
+      { n: '우리WON뱅킹', c: '우리은행', bg: '#0083CB', fg: '#fff', i: 'WON', s: 'NewSmartPib://', appId: '1470181651' },
+      { n: 'KB스타뱅킹', c: '국민은행', bg: '#FFBC00', fg: '#60584C', i: 'KB', s: 'kbbank://', appId: '373742138' },
+      { n: '하나원큐', c: '하나은행', bg: '#008485', fg: '#fff', i: 'H', s: 'hanabank://', appId: '6743190232' },
+      { n: 'NH스마트뱅킹', c: '농협은행', bg: '#00A05B', fg: '#fff', i: 'NH', s: 'com.nonghyup.nhsmartbanking://', appId: '1444712671' },
+      { n: 'i-ONE뱅크', c: '기업은행', bg: '#0069B3', fg: '#fff', i: 'IBK', s: 'IBKBANK://', appId: '1460543865' },
+      { n: '케이뱅크', c: '케이뱅크', bg: '#FF6600', fg: '#fff', i: 'K', s: 'kbanktoktok://', appId: '1178872627' },
+      { n: '카카오페이', c: '카카오페이', bg: '#FFE500', fg: '#3C1E1E', i: 'pay', s: 'kakaopay://', appId: '1464496236' },
+
+      // === 그 외 은행 (App Store 검색으로 폴백) ===
+      { n: '산업은행', c: '산업은행', bg: '#003478', fg: '#fff', i: 'KDB', s: 'smartkdb://', appId: '1214343046' },
+      { n: '수협', c: '수협은행', bg: '#0066B2', fg: '#fff', i: 'Sh', s: 'suhyup://' },
+      { n: '부산은행', c: '부산은행', bg: '#D6001C', fg: '#fff', i: 'BNK', s: 'busanbank://' },
+      { n: '대구은행', c: 'iM뱅크', bg: '#008CD6', fg: '#fff', i: 'iM', s: 'dgbank://' },
+      { n: '광주은행', c: '광주은행', bg: '#004A98', fg: '#fff', i: 'KJ', s: 'gwangju://' },
+      { n: '전북은행', c: '전북은행', bg: '#005CA3', fg: '#fff', i: 'JB', s: 'jbbank://' },
+      { n: '제주은행', c: '제주은행', bg: '#0046FF', fg: '#fff', i: '제주', s: 'jejubank://' },
+      { n: '네이버페이', c: '네이버페이', bg: '#03C75A', fg: '#fff', i: 'N', s: 'naverpay://', appId: '1201267160' },
+    ];
+    
+    function renderLanding() {
+      if (!currentLandingData) return;
+      const d = currentLandingData;
+      
+      $('#landing-title').textContent = d.t;
+      $('#landing-account').textContent = d.bn + ' ' + (d.an.slice(-4));
+      
+      if (d.rv) {
+        $('#review-card').style.display = 'block';
+        $('#btn-review').textContent = '⭐ 리뷰 남기기';
+        $('#btn-review').onclick = () => window.open(d.rv, '_blank');
+      } else {
+        $('#review-card').style.display = 'none';
+      }
+      
+      // 픽업코드 있는지 확인
+      if (!d.pk || d.pk.length === 0) {
+        $('#pickup-card').style.display = 'none';
+      } else {
+        $('#pickup-card').style.display = 'block';
+        // 코드 입력 필드 초기화 + 자동이동 로직 설정
+        initCodeInputs();
+      }
+      
+      // 은행 그리드
+      const grid = $('#bank-grid');
+      grid.innerHTML = '';
+      BANKS.forEach(b => {
+        if (b.toss && d.toss === false) return;
+        const btn = document.createElement('button');
+        btn.className = 'bank';
+        const sizeCls = b.i.length >= 4 ? ' w4' : (b.i.length === 3 ? ' w3' : '');
+        btn.innerHTML = `<span class="ic${sizeCls}" style="background:${b.bg}; color:${b.fg}">${b.i}</span><span>${b.n}</span>`;
+        btn.onclick = () => clickBank(d, b);
+        grid.appendChild(btn);
+      });
+      
+      $('#success').classList.remove('show');
+      $('#code-row').classList.remove('err');
+      $('#code-msg').textContent = '';
+    }
+    
+    // 코드 입력 필드: 숫자만, 자동 다음 칸으로, 4자리 완성 시 자동 검증
+    function initCodeInputs() {
+      const inputs = [...$('#code-row').querySelectorAll('input')];
+      
+      // 4칸 모두 채워지면 확인 버튼 없이 자동 검증
+      function checkAutoVerify() {
+        if (inputs.every(i => i.value.length === 1)) {
+          inputs[inputs.length - 1].blur(); // 키보드 내리기
+          setTimeout(verifyCode, 150);      // 마지막 숫자 렌더 후 검증
+        }
+      }
+      
+      inputs.forEach((input, idx) => {
+        input.value = '';
+        
+        input.addEventListener('input', (e) => {
+          const val = e.target.value.replace(/[^0-9]/g, '');
+          $('#code-msg').textContent = ''; // 재입력 시작 시 이전 오류 메시지 제거
+          
+          // 4자리 코드 붙여넣기(또는 SMS 자동완성) 시 각 칸에 분배
+          if (val.length > 1) {
+            const digits = val.slice(0, inputs.length - idx).split('');
+            digits.forEach((dg, i) => { inputs[idx + i].value = dg; });
+            const next = Math.min(idx + digits.length, inputs.length - 1);
+            inputs[next].focus();
+            checkAutoVerify();
+            return;
+          }
+          
+          input.value = val;
+          
+          if (val.length === 1 && idx < inputs.length - 1) {
+            inputs[idx + 1].focus();
+          }
+          checkAutoVerify();
+        });
+        
+        input.addEventListener('keydown', (e) => {
+          // 백스페이스: 이전 칸으로
+          if (e.key === 'Backspace' && input.value === '' && idx > 0) {
+            e.preventDefault();
+            inputs[idx - 1].focus();
+          }
+        });
+      });
+      
+      inputs[0].focus();
+    }
+    
+    function clickBank(d, bank) {
+      // 계좌번호만 복사 — 은행앱 계좌 입력칸에 그대로 붙여넣기 가능하게 (은행명/예금주 섞이면 붙여넣기 실패)
+      copyText(d.an);
+
+      if (bank.toss) {
+        const amount = d.amt || 0;
+        const url = `supertoss://send?bank=${encodeURIComponent(d.bn)}&accountNo=${d.an}&amount=${amount}&origin=acomma`;
+        openAppWithFallback(url, bank);
+        return;
+      }
+
+      toast(`계좌번호 복사됨: ${d.an} (${d.bn} ${d.ah}) — 앱에서 붙여넣기`);
+      
+      if (bank.s) {
+        openAppWithFallback(bank.s, bank);
+      } else {
+        // scheme 자체가 없는 은행 → 바로 스토어 검색으로
+        goToStore(bank);
+      }
+    }
+    
+    // 앱 열기 시도 → 일정 시간 안에 화면 전환(hidden)이 감지 안 되면 "앱이 없다"고 판단 → 스토어 이동
+    function openAppWithFallback(scheme, bank) {
+      let didHide = false;
+      const start = Date.now();
+      
+      function onHide() {
+        if (document.hidden) didHide = true;
+      }
+      document.addEventListener('visibilitychange', onHide);
+      window.addEventListener('pagehide', onHide);
+      
+      // 앱 스킴 시도
+      window.location.href = scheme;
+      
+      toast(`${bank.c || bank.n} 앱 여는 중...`);
+      
+      setTimeout(() => {
+        document.removeEventListener('visibilitychange', onHide);
+        window.removeEventListener('pagehide', onHide);
+        
+        // 1.2초 안에 백그라운드 전환이 없었다면 = 앱이 설치되어 있지 않음
+        if (!didHide && Date.now() - start < 2500) {
+          goToStore(bank);
+        }
+      }, 1200);
+    }
+    
+    // App Store로 이동: appId가 있으면 정확한 페이지로, 없으면 은행명 검색 결과로
+    function goToStore(bank) {
+      let storeUrl;
+      if (bank.appId) {
+        storeUrl = `https://apps.apple.com/kr/app/id${bank.appId}`;
+      } else {
+        storeUrl = `https://apps.apple.com/kr/search?term=${encodeURIComponent(bank.c || bank.n)}`;
+      }
+      toast(`${bank.c || bank.n} 앱이 없어 App Store로 이동합니다`);
+      setTimeout(() => {
+        window.location.href = storeUrl;
+      }, 600);
+    }
+    
+    function verifyCode() {
+      const inputs = [...$('#code-row').querySelectorAll('input')];
+      const code = inputs.map(i => i.value).join('');
+      const msg = $('#code-msg');
+      const row = $('#code-row');
+      
+      row.classList.remove('err');
+      
+      if (code.length < 4) {
+        msg.textContent = '4자리 코드를 입력해주세요';
+        return;
+      }
+      
+      const order = currentLandingData.pk.find(o => o.c === code);
+      if (!order) {
+        row.classList.add('err');
+        msg.textContent = '일치하는 코드가 없습니다';
+        // 자동검증 흐름: 틀린 코드는 흔들림 후 초기화 → 바로 재입력 가능
+        setTimeout(() => {
+          inputs.forEach(i => { i.value = ''; });
+          row.classList.remove('err');
+          inputs[0].focus();
+        }, 700);
+        return;
+      }
+      
+      // 성공
+      $('#pickup-card').style.display = 'none';
+      $('#success').classList.add('show');
+      $('#slot-info').innerHTML = order.s 
+        ? `${order.l || ''} · 슬롯 <b>${order.s}번</b> 도어를 열어주세요`
+        : order.l || '';
+      
+      toast('✅ 픽업 인증 완료!');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    // 초기화
+    try {
+      renderList();
+    } catch (e) {
+      console.error('초기화 오류:', e);
+    }
+    
+    // URL 파라미터에서 데이터 로드
+    try {
+      const params = new URLSearchParams(location.search);
+      if (params.has('landing')) {
+        currentLandingData = b64url.dec(params.get('landing'));
+        renderLanding();
+        switchTab('landing');
+      }
+    } catch (e) {
+      console.error('데이터 로드 오류:', e);
+      toast('데이터 로드 실패');
+    }
+  </script>
+</body>
+</html>
