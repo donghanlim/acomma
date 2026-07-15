@@ -950,11 +950,14 @@
       console.error('초기화 오류:', e);
     }
     
-    // URL 파라미터에서 데이터 로드
+    // URL 파라미터에서 데이터 로드 (해시 우선, 쿼리 폴백)
     try {
+      const hashMatch = location.hash.match(/landing=([^&]*)/);
       const params = new URLSearchParams(location.search);
-      if (params.has('landing')) {
-        currentLandingData = b64url.dec(params.get('landing'));
+      const encoded = hashMatch ? hashMatch[1] : (params.has('landing') ? params.get('landing') : null);
+
+      if (encoded) {
+        currentLandingData = b64url.dec(encoded);
         renderLanding();
         switchTab('landing');
       }
