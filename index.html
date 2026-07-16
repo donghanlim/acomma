@@ -935,9 +935,10 @@
       // [검증필요] 표시 없는 appId/pkg는 App Store·Play 스토어 페이지에서 직접 확인함
       { n: '토스', c: '토스', bg: '#0064FF', fg: '#fff', i: 'toss', s: 'supertoss://', appId: '839333328', pkg: 'viva.republica.toss', toss: true },
       { n: '카카오페이', c: '카카오페이', bg: '#FFE500', fg: '#3C1E1E', i: 'pay', s: 'kakaopay://', appId: '1464496236', pkg: 'com.kakaopay.app' },
-      // 네이버페이는 별도 앱이 아니라 네이버 앱 내 기능 — 실행되는 앱은 "네이버"
-      // 스킴은 naverpay:// 아님. 토스페이먼츠 공식 자료 기준 naversearchthirdlogin:// (iOS), 패키지 com.nhn.android.search
-      { n: '네이버페이', c: '네이버 앱', bg: '#03C75A', fg: '#fff', i: 'N', s: 'naversearchthirdlogin://', appId: '393499958', pkg: 'com.nhn.android.search' },
+      // 네이버페이는 별도 독립 앱 (2021년 8월부터). 딥링크 대신 사용자님 요청 링크로 직접 연결
+      // iOS: https://apps.apple.com/kr/app/%EB%84%A4%EC%9D%B4%EB%B2%84%ED%8E%98%EC%9D%B4/id1554807824
+      // Android: play.google.com/store/apps/details?id=com.naverfin.payapp
+      { n: '네이버페이', c: '네이버페이', bg: '#03C75A', fg: '#fff', i: 'N', appId: '1554807824', pkg: 'com.naverfin.payapp' },
       { n: '페이코', c: 'PAYCO', bg: '#E4032E', fg: '#fff', i: 'P', s: 'payco://', appId: '924292102', pkg: 'com.nhnent.payapp' },
     ];
 
@@ -1190,10 +1191,11 @@
 
       toast(`계좌번호 복사됨: ${d.an} (${d.bn} ${d.ah}) — 앱에서 붙여넣기`);
       
+      // 네이버페이는 s 필드가 없으므로 스킴 시도 안 함 → 바로 스토어로
       if (bank.s) {
         openAppWithFallback(bank.s, bank);
       } else {
-        // scheme 자체가 없는 은행 → 바로 스토어 검색으로
+        // 스킴이 없는 앱(네이버페이 등) → 바로 스토어로
         goToStore(bank);
       }
     }
