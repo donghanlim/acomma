@@ -1,0 +1,681 @@
+diff --git a/index.html b/index.html
+index b5e3b9b..802d2a7 100644
+--- a/index.html
++++ b/index.html
+@@ -11,6 +11,7 @@
+   
+   <title>a.comma — 꽃 픽업 결제 시스템</title>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
++  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+   <style>
+     * { margin: 0; padding: 0; box-sizing: border-box; }
+     :root {
+@@ -191,10 +192,21 @@
+     .hero {
+       text-align: center;
+       padding: 16px 0;
++      border-radius: 14px;
++      background-size: cover;
++      background-position: center;
++      transition: padding .2s;
++    }
++    .hero.has-bg {
++      padding: 28px 16px;
++      color: #fff;
++      text-shadow: 0 1px 4px rgba(0,0,0,.55);
+     }
+     .hero .emoji { font-size: 32px; }
+     .hero h1 { font-size: 20px; font-weight: 800; margin-top: 6px; }
+     .hero p { font-size: 12px; color: var(--sub); margin-top: 4px; }
++    .hero.has-bg p { color: rgba(255,255,255,.9); }
++    .hero .sub-desc { font-size: 13px; margin-top: 6px; line-height: 1.5; }
+     
+     /* 픽업 코드 입력 */
+     .code-row {
+@@ -263,6 +275,7 @@
+       font-size: 12px;
+       font-weight: 600;
+       text-align: left;
++      min-width: 0; /* grid 셀 안에서 자식 텍스트 ellipsis가 동작하려면 필요 */
+     }
+     .bank:active { background: #f2f4f6; }
+     .bank.sel { border-color: var(--brand); background: #f0f6ff; }
+@@ -282,6 +295,101 @@
+     }
+     .bank .ic.w3 { font-size: 10px; }  /* 3글자 워드마크 (SOL, WON, IBK) */
+     .bank .ic.w4 { font-size: 9px; }   /* 4글자 워드마크 (toss) */
++    /* 공식 로고 이미지 사용 시 (b.logo 지정) — 워드마크와 동일 규격 */
++    .bank .ic-img {
++      width: 34px;
++      height: 34px;
++      border-radius: 9px;
++      flex-shrink: 0;
++      object-fit: contain;
++      background: #fff;
++    }
++    /* 앱명 + 기관명 2줄 (AQR 레이아웃 벤치마킹) */
++    .bank-txt {
++      display: flex;
++      flex-direction: column;
++      gap: 3px;
++      min-width: 0;
++    }
++    .bank-n {
++      font-size: 12px;
++      font-weight: 700;
++      white-space: nowrap;
++      overflow: hidden;
++      text-overflow: ellipsis;
++    }
++    .bank-org {
++      font-size: 10px;
++      font-weight: 500;
++      color: var(--sub);
++      background: #f2f4f6;
++      border-radius: 5px;
++      padding: 1px 5px;
++      align-self: flex-start;
++      white-space: nowrap;
++      overflow: hidden;
++      text-overflow: ellipsis;
++      max-width: 100%;
++    }
++    .grid-label {
++      font-size: 11px;
++      font-weight: 700;
++      color: #8b95a1;
++      letter-spacing: 0.4px;
++      margin: 12px 2px 6px;
++    }
++    .grid-divider {
++      height: 1px;
++      background: var(--line);
++      margin: 14px 0 2px;
++    }
++    .amt-badge {
++      display: inline-block;
++      background: #f0f6ff;
++      color: var(--brand);
++      font-size: 15px;
++      font-weight: 800;
++      padding: 6px 14px;
++      border-radius: 999px;
++      margin-bottom: 8px;
++    }
++    /* 커스텀 링크 버튼 (AQR "여러 QR과 링크를 하나로" 벤치마킹) */
++    .link-grid {
++      display: flex;
++      flex-direction: column;
++      gap: 8px;
++    }
++    .link-btn {
++      display: flex;
++      align-items: center;
++      gap: 10px;
++      padding: 12px 14px;
++      border: 1px solid var(--line);
++      border-radius: 10px;
++      background: #fff;
++      cursor: pointer;
++      font-size: 13px;
++      font-weight: 700;
++      text-align: left;
++      width: 100%;
++    }
++    .link-btn:active { background: #f2f4f6; }
++    .link-btn .link-ic {
++      width: 28px; height: 28px;
++      border-radius: 8px;
++      background: #f0f2f5;
++      flex-shrink: 0;
++      display: flex; align-items: center; justify-content: center;
++      font-size: 14px;
++    }
++    /* 관리자 폼: QR 스캔 등록 */
++    .qr-scan-row {
++      display: flex;
++      gap: 8px;
++      align-items: center;
++      margin-top: 6px;
++    }
++    .qr-scan-row input[type="file"] { display: none; }
+     
+     .notice {
+       font-size: 11px;
+@@ -325,8 +433,8 @@
+   <div class="container">
+     <!-- 탭 네비 -->
+     <div class="tab-nav">
+-      <button class="tab-btn active" onclick="switchTab('manager')">관리</button>
+-      <button class="tab-btn" onclick="switchTab('landing')">고객 랜딩</button>
++      <button class="tab-btn active" data-tab="manager" onclick="switchTab('manager')">관리</button>
++      <button class="tab-btn" data-tab="landing" onclick="switchTab('landing')">고객 랜딩</button>
+     </div>
+     
+     <!-- ===== 탭 1: 관리 사이트 ===== -->
+@@ -345,6 +453,17 @@
+           <label>페이지 이름 *</label>
+           <input type="text" id="f-title" placeholder="예: 플레라플레로 플라워캐빈" maxlength="40" />
+         </div>
++
++        <div class="field">
++          <label>부제목 <span class="opt">(선택)</span></label>
++          <input type="text" id="f-sub" placeholder="예: 신선한 꽃을 편한 시간에 픽업하세요" maxlength="60" />
++        </div>
++
++        <div class="field">
++          <label>배경 이미지 URL <span class="opt">(선택)</span></label>
++          <input type="url" id="f-bg" placeholder="https://..." />
++          <div class="hint">비워두면 기본 배경 사용. 텍스트 위 어두운 오버레이 자동 적용</div>
++        </div>
+         
+         <div class="row2">
+           <div class="field">
+@@ -385,8 +504,27 @@
+           <textarea id="f-pickups" placeholder="4자리코드,주문명,슬롯번호&#10;0001,주문#1,5&#10;0002,주문#2,7" style="font-size: 11px; font-family: monospace; height: 80px; resize: vertical;"></textarea>
+           <div class="hint">한 줄당 하나. 형식: 코드,주문명,슬롯</div>
+         </div>
++
++        <div class="field">
++          <label>바로가기 링크 <span class="opt">(선택, 인스타그램·홈페이지·해외결제 QR 등)</span></label>
++          <textarea id="f-links" placeholder="제목,URL&#10;인스타그램,https://instagram.com/...&#10;페이팔,https://paypal.me/..." style="font-size: 11px; font-family: monospace; height: 70px; resize: vertical;"></textarea>
++          <div class="hint">한 줄당 하나. 형식: 제목,URL — 아래 QR 스캔으로 자동 추가 가능</div>
++          <div class="qr-scan-row">
++            <input type="file" id="f-qr-file" accept="image/*" onchange="scanQrToLink(event)" />
++            <button type="button" class="btn btn-ghost btn-sm" onclick="$('#f-qr-file').click()">📷 QR 스캔으로 링크 추가</button>
++          </div>
++          <div class="hint">카카오페이·페이팔·Venmo 등 결제 QR을 촬영하면 URL을 자동 인식해 위 목록에 추가합니다</div>
++        </div>
++
++        <div class="field">
++          <div class="toggle">
++            <input type="checkbox" id="f-linktop" />
++            <label for="f-linktop" style="margin:0; cursor:pointer;">바로가기 링크를 결제 수단 위에 표시</label>
++          </div>
++        </div>
+         
+-        <button class="btn btn-primary" onclick="createPage()">🎯 페이지 생성</button>
++        <button class="btn btn-primary" id="btn-save" onclick="createPage()">🎯 페이지 생성</button>
++        <button class="btn btn-ghost" id="btn-cancel-edit" onclick="cancelEdit()" style="display:none; margin-top:8px;">취소</button>
+       </div>
+       
+       <!-- 결과 -->
+@@ -409,10 +547,17 @@
+     
+     <!-- ===== 탭 2: 고객 랜딩 ===== -->
+     <div id="landing" class="tab-content">
+-      <div class="hero">
+-        <div class="emoji">🌷</div>
++      <div class="hero" id="hero">
++        <div class="emoji" id="hero-emoji">🌷</div>
+         <h1 id="landing-title">플레라플레로</h1>
+         <p id="landing-account">로드 중...</p>
++        <p class="sub-desc" id="landing-sub" style="display:none;"></p>
++      </div>
++
++      <!-- 바로가기 링크 (송금 카드 위쪽 표시 옵션) -->
++      <div class="card" id="links-card-top" style="display:none;">
++        <h2>🔗 바로가기</h2>
++        <div class="link-grid" id="link-grid-top"></div>
+       </div>
+       
+       <!-- 픽업 코드 섹션 -->
+@@ -438,18 +583,29 @@
+       <!-- 송금 섹션 -->
+       <div class="card" id="transfer-card">
+         <h2>💸 송금하기</h2>
++        <div class="amt-badge" id="amt-badge" style="display:none;"></div>
+         <div class="notice">
+-          <strong>은행 선택:</strong> 탭하면 계좌 복사 + 앱이 자동으로 열립니다.<br/>
++          <strong>탭하면</strong> 계좌 복사 + 앱이 자동으로 열립니다.<br/>
+           앱이 없으면 <strong>App Store로 자동 이동</strong>합니다.
+         </div>
++        <div class="grid-label">간편 페이</div>
++        <div class="bank-grid" id="pay-grid"></div>
++        <div class="grid-divider"></div>
++        <div class="grid-label">은행 앱</div>
+         <div class="bank-grid" id="bank-grid"></div>
+         <div class="notice">
+           ⓘ 금액 자동입력은 토스만 지원 (나머지는 계좌만 자동복사)<br/>
+-          ⓘ 송금은 각 은행 앱에서 직접 진행<br/>
++          ⓘ 송금은 각 앱에서 직접 진행<br/>
+           ⓘ 이 페이지는 결제금을 보관하지 않음
+         </div>
+       </div>
+       
++      <!-- 바로가기 링크 (기본 위치: 송금 카드 아래) -->
++      <div class="card" id="links-card-bottom" style="display:none;">
++        <h2>🔗 바로가기</h2>
++        <div class="link-grid" id="link-grid-bottom"></div>
++      </div>
++      
+       <!-- 리뷰 섹션 -->
+       <div class="card" id="review-card" style="display:none;">
+         <h2>⭐ 리뷰</h2>
+@@ -510,10 +666,27 @@
+       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('show'));
+       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+       $(`#${tab}`).classList.add('show');
+-      event.target.classList.add('active');
++      // event.target 의존 제거: 프로그래매틱 호출(QR 진입 등)에서도 안전하게 동작
++      const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
++      if (btn) btn.classList.add('active');
+     }
+     
+     // ===== 관리 사이트 =====
++    // "제목,URL" 형식 텍스트를 링크 배열로 파싱 (픽업코드 파싱과 동일 패턴)
++    function parseLinks(text) {
++      return (text || '')
++        .split('\n')
++        .map(line => {
++          const idx = line.indexOf(',');
++          if (idx < 0) return null;
++          const t = line.slice(0, idx).trim();
++          const u = line.slice(idx + 1).trim();
++          if (!t || !/^https?:\/\//i.test(u)) return null;
++          return { t, u };
++        })
++        .filter(Boolean);
++    }
++
+     function readForm() {
+       const title = $('#f-title').value.trim();
+       const bank = $('#f-bank').value.trim();
+@@ -536,6 +709,8 @@
+       return {
+         v: 1,
+         t: title,
++        sub: $('#f-sub').value.trim(),
++        bg: $('#f-bg').value.trim(),
+         bn: bank,
+         an: account,
+         ah: holder,
+@@ -543,6 +718,8 @@
+         toss: $('#f-toss').checked,
+         rv: $('#f-review').value.trim(),
+         pk: pickups,
++        links: parseLinks($('#f-links').value),
++        linktop: $('#f-linktop').checked,
+         id: editingId || Math.random().toString(36).slice(2, 8),
+       };
+     }
+@@ -575,8 +752,11 @@
+         console.error('저장 오류:', e);
+       }
+       
++      const wasEditing = !!editingId;
+       editingId = null;
+       $('#form-title').textContent = '새 페이지 만들기';
++      $('#btn-save').textContent = '🎯 페이지 생성';
++      $('#btn-cancel-edit').style.display = 'none';
+       
+       // QR 표시
+       const url = location.origin + location.pathname + '#landing=' + b64url.enc(data);
+@@ -597,9 +777,22 @@
+       
+       $('#result-card').style.display = 'block';
+       renderList();
+-      toast('✅ 페이지 생성됨');
++      toast(wasEditing ? '💾 수정사항이 저장되었습니다' : '✅ 페이지 생성됨');
+       $('#result-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+     }
++
++    // 수정 모드 취소 — 폼을 비우고 "새 페이지 만들기" 상태로 복귀 (저장하지 않음)
++    function cancelEdit() {
++      editingId = null;
++      $('#form-title').textContent = '새 페이지 만들기';
++      $('#btn-save').textContent = '🎯 페이지 생성';
++      $('#btn-cancel-edit').style.display = 'none';
++      ['f-title','f-sub','f-bg','f-bank','f-holder','f-account','f-amount','f-review','f-pickups','f-links']
++        .forEach(id => { $('#' + id).value = ''; });
++      $('#f-toss').checked = true;
++      $('#f-linktop').checked = false;
++      toast('수정을 취소했습니다');
++    }
+     
+     // clipboard API가 막힌 웹뷰(카톡 인앱 등) 대비 execCommand 폴백
+     function copyText(text) {
+@@ -688,7 +881,11 @@
+         const p = pages[idx];
+         editingId = p.id;
+         $('#form-title').textContent = '페이지 수정: ' + p.title;
++        $('#btn-save').textContent = '💾 수정 저장';
++        $('#btn-cancel-edit').style.display = 'inline-flex';
+         $('#f-title').value = p.data.t;
++        $('#f-sub').value = p.data.sub || '';
++        $('#f-bg').value = p.data.bg || '';
+         $('#f-bank').value = p.data.bn;
+         $('#f-holder').value = p.data.ah;
+         $('#f-account').value = p.data.an;
+@@ -696,6 +893,8 @@
+         $('#f-toss').checked = p.data.toss !== false;
+         $('#f-review').value = p.data.rv || '';
+         $('#f-pickups').value = (p.data.pk || []).map(o => [o.c, o.l, o.s].join(',')).join('\n');
++        $('#f-links').value = (p.data.links || []).map(o => [o.t, o.u].join(',')).join('\n');
++        $('#f-linktop').checked = !!p.data.linktop;
+         switchTab('manager');
+         window.scrollTo({ top: 0, behavior: 'smooth' });
+       } catch (e) {
+@@ -728,29 +927,58 @@
+     // 주의: 한국 금융앱 대부분이 보안상 웹 딥링크 scheme을 비활성화함
+     // 따라서 이 코드는 scheme 시도 후 1.2초 내에 App Store로 자동 이동하는 폴백에 의존
+     // 토스만 딥링크 전송 기능 지원
++    // === 간편 페이 (은행 위쪽 별도 그룹, 4종) ===
++    // 토스만 금액·계좌 자동입력 딥링크 지원. 나머지는 앱 열기 + 계좌 자동복사.
++    // 애플페이는 국내 계좌송금(P2P) 미지원이라 제외.
++    const PAYS = [
++      // pkg: Android 패키지명(Google Play 폴백용) — 토스페이먼츠 공식 블로그(2023.3) 기준 검증
++      // [검증필요] 표시 없는 appId/pkg는 App Store·Play 스토어 페이지에서 직접 확인함
++      { n: '토스', c: '토스', bg: '#0064FF', fg: '#fff', i: 'toss', s: 'supertoss://', appId: '839333328', pkg: 'viva.republica.toss', toss: true },
++      { n: '카카오페이', c: '카카오페이', bg: '#FFE500', fg: '#3C1E1E', i: 'pay', s: 'kakaopay://', appId: '1464496236', pkg: 'com.kakaopay.app' },
++      // 네이버페이는 별도 앱이 아니라 네이버 앱 내 기능 — 실행되는 앱은 "네이버"
++      // 스킴은 naverpay:// 아님. 토스페이먼츠 공식 자료 기준 naversearchthirdlogin:// (iOS), 패키지 com.nhn.android.search
++      { n: '네이버페이', c: '네이버 앱', bg: '#03C75A', fg: '#fff', i: 'N', s: 'naversearchthirdlogin://', appId: '393499958', pkg: 'com.nhn.android.search' },
++      { n: '페이코', c: 'PAYCO', bg: '#E4032E', fg: '#fff', i: 'P', s: 'payco://', appId: '924292102', pkg: 'com.nhnent.payapp' },
++    ];
++
+     const BANKS = [
+-      // === 최상위 10대 금융회사 (App Store ID 정밀 폴백, scheme은 참조용) ===
++      // 배치 기준: (1) 1금융 인터넷은행 3사 → (2) 1금융 시중은행(고객수 순) → (3) 국책은행
++      //           → (4) 2금융권 → (5) 지역은행(광주 매장 기준 근접 순) → (6) 소매 비중 낮은 특수은행
+       // i: 브랜드 워드마크(BI 스타일), bg/fg: 각사 공식 브랜드 컬러 기반
+-      { n: '카카오뱅크', c: '카카오뱅크', bg: '#FFCC00', fg: '#3C1E1E', i: 'B', s: 'kakaobank://', appId: '1258016944' },
+-      { n: '토스뱅크', c: '토스뱅크', bg: '#0064FF', fg: '#fff', i: 'toss', s: 'supertoss://', appId: '839333328', toss: true },
++      // logo: 공식 로고 이미지 경로(있으면 워드마크 대신 표시). 라이선스 확인 후 assets/banks/에 직접 배치할 것
++
++      // === (1) 1금융권 인터넷전문은행 3사 ===
++      { n: '카카오뱅크', c: '카카오뱅크', bg: '#FFCC00', fg: '#3C1E1E', i: 'B', s: 'kakaobank://', appId: '1258016944', pkg: 'com.kakaobank.channel' },
++      { n: '토스뱅크', c: '토스뱅크', bg: '#0064FF', fg: '#fff', i: 'toss', s: 'supertoss://', appId: '839333328', pkg: 'viva.republica.toss', toss: true },
++      { n: '케이뱅크', c: '케이뱅크', bg: '#FF6600', fg: '#fff', i: 'K', s: 'kbanktoktok://', appId: '1178872627', pkg: 'com.kbankwith.smartbank' },
++
++      // === (2) 1금융권 시중은행 (고객·계좌 수 상위 순) — scheme은 미검증[검증필요], appId는 확인됨 ===
++      { n: 'KB스타뱅킹', c: '국민은행', bg: '#FFBC00', fg: '#60584C', i: 'KB', s: 'kbbank://', appId: '373742138' },
++      { n: 'NH스마트뱅킹', c: '농협은행', bg: '#00A05B', fg: '#fff', i: 'NH', s: 'com.nonghyup.nhsmartbanking://', appId: '1444712671' },
+       { n: '신한SOL뱅크', c: '신한은행', bg: '#0046FF', fg: '#fff', i: 'SOL', s: 'shinhan-sr-ansimclick://', appId: '357484932' },
+       { n: '우리WON뱅킹', c: '우리은행', bg: '#0083CB', fg: '#fff', i: 'WON', s: 'NewSmartPib://', appId: '1470181651' },
+-      { n: 'KB스타뱅킹', c: '국민은행', bg: '#FFBC00', fg: '#60584C', i: 'KB', s: 'kbbank://', appId: '373742138' },
+       { n: '하나원큐', c: '하나은행', bg: '#008485', fg: '#fff', i: 'H', s: 'hanabank://', appId: '6743190232' },
+-      { n: 'NH스마트뱅킹', c: '농협은행', bg: '#00A05B', fg: '#fff', i: 'NH', s: 'com.nonghyup.nhsmartbanking://', appId: '1444712671' },
++
++      // === (3) 국책·특수은행 (소매 고객 보유) ===
+       { n: 'i-ONE뱅크', c: '기업은행', bg: '#0069B3', fg: '#fff', i: 'IBK', s: 'IBKBANK://', appId: '1460543865' },
+-      { n: '케이뱅크', c: '케이뱅크', bg: '#FF6600', fg: '#fff', i: 'K', s: 'kbanktoktok://', appId: '1178872627' },
+-      { n: '카카오페이', c: '카카오페이', bg: '#FFE500', fg: '#3C1E1E', i: 'pay', s: 'kakaopay://', appId: '1464496236' },
+ 
+-      // === 그 외 은행 (App Store 검색으로 폴백) ===
+-      { n: '산업은행', c: '산업은행', bg: '#003478', fg: '#fff', i: 'KDB', s: 'smartkdb://', appId: '1214343046' },
+-      { n: '수협', c: '수협은행', bg: '#0066B2', fg: '#fff', i: 'Sh', s: 'suhyup://' },
+-      { n: '부산은행', c: '부산은행', bg: '#D6001C', fg: '#fff', i: 'BNK', s: 'busanbank://' },
+-      { n: '대구은행', c: 'iM뱅크', bg: '#008CD6', fg: '#fff', i: 'iM', s: 'dgbank://' },
+-      { n: '광주은행', c: '광주은행', bg: '#004A98', fg: '#fff', i: 'KJ', s: 'gwangju://' },
++      // === (4) 2금융권 (상호금융·우체국예금) ===
++      // 우체국뱅킹: appId·pkg 확인됨(App Store/Play 등록정보). scheme(postbank://)은 미검증[검증필요] — 실패 시 스토어 폴백은 정확히 동작
++      { n: '우체국뱅킹', c: '우체국', bg: '#EE2E24', fg: '#fff', i: '우체국', s: 'postbank://', appId: '554920991', pkg: 'com.epost.psf.sdsi' },
++      { n: 'MG더뱅킹', c: '새마을금고', bg: '#0068B7', fg: '#fff', i: 'MG', s: 'mgbank://' },
++      { n: 'Sh수협', c: '수협은행', bg: '#0066B2', fg: '#fff', i: 'Sh', s: 'suhyup://' },
++      { n: '신협ON', c: '신협', bg: '#0067AC', fg: '#fff', i: '신협', s: 'cuon://' },
++
++      // === (5) 지역은행 (광주 매장 기준 근접 순) ===
++      // 광주은행("광주 와뱅크"): appId·pkg 확인됨. scheme(gwangju://)은 미검증[검증필요] — 실패 시 스토어 폴백은 정확히 동작
++      { n: '광주은행', c: '광주은행', bg: '#004A98', fg: '#fff', i: 'KJ', s: 'gwangju://', appId: '1576149106', pkg: 'com.kjbank.asb.pbanking' },
+       { n: '전북은행', c: '전북은행', bg: '#005CA3', fg: '#fff', i: 'JB', s: 'jbbank://' },
++      { n: '부산은행', c: '부산은행', bg: '#D6001C', fg: '#fff', i: 'BNK', s: 'busanbank://' },
++      { n: 'iM뱅크', c: 'iM뱅크', bg: '#008CD6', fg: '#fff', i: 'iM', s: 'dgbank://' },
+       { n: '제주은행', c: '제주은행', bg: '#0046FF', fg: '#fff', i: '제주', s: 'jejubank://' },
+-      { n: '네이버페이', c: '네이버페이', bg: '#03C75A', fg: '#fff', i: 'N', s: 'naverpay://', appId: '1201267160' },
++
++      // === (6) 소매 비중 낮은 특수은행 ===
++      { n: '산업은행', c: '산업은행', bg: '#003478', fg: '#fff', i: 'KDB', s: 'smartkdb://', appId: '1214343046' },
+     ];
+     
+     function renderLanding() {
+@@ -759,6 +987,25 @@
+       
+       $('#landing-title').textContent = d.t;
+       $('#landing-account').textContent = d.bn + ' ' + (d.an.slice(-4));
++
++      // 부제목 (설정 시에만 표시)
++      const subEl = $('#landing-sub');
++      if (d.sub) {
++        subEl.textContent = d.sub;
++        subEl.style.display = 'block';
++      } else {
++        subEl.style.display = 'none';
++      }
++
++      // 배경 이미지 (설정 시 hero에 적용, 텍스트 가독성용 오버레이 포함)
++      const hero = $('#hero');
++      if (d.bg) {
++        hero.style.backgroundImage = `linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,.45)), url("${d.bg.replace(/"/g, '')}")`;
++        hero.classList.add('has-bg');
++      } else {
++        hero.style.backgroundImage = '';
++        hero.classList.remove('has-bg');
++      }
+       
+       if (d.rv) {
+         $('#review-card').style.display = 'block';
+@@ -777,17 +1024,103 @@
+         initCodeInputs();
+       }
+       
++      // 금액 뱃지 (설정 시에만 표시)
++      const amtBadge = $('#amt-badge');
++      if (d.amt && d.amt > 0) {
++        amtBadge.textContent = d.amt.toLocaleString('ko-KR') + '원';
++        amtBadge.style.display = 'inline-block';
++      } else {
++        amtBadge.style.display = 'none';
++      }
++
++      // 바로가기 링크 (커스텀 링크·QR로 등록한 외부 링크) — 위/아래 카드 중 하나에만 표시
++      const links = d.links || [];
++      const topCard = $('#links-card-top');
++      const bottomCard = $('#links-card-bottom');
++      const activeGrid = d.linktop ? $('#link-grid-top') : $('#link-grid-bottom');
++      [topCard, bottomCard].forEach(c => c.style.display = 'none');
++      $('#link-grid-top').innerHTML = '';
++      $('#link-grid-bottom').innerHTML = '';
++
++      if (links.length) {
++        (d.linktop ? topCard : bottomCard).style.display = 'block';
++        links.forEach(link => {
++          const btn = document.createElement('button');
++          btn.className = 'link-btn';
++          const icon = document.createElement('span');
++          icon.className = 'link-ic';
++          icon.textContent = '🔗';
++          const label = document.createElement('span');
++          label.textContent = link.t; // 사용자 입력값 — XSS 방지를 위해 textContent 사용 (innerHTML 금지)
++          btn.appendChild(icon);
++          btn.appendChild(label);
++          btn.onclick = () => window.open(link.u, '_blank', 'noopener');
++          activeGrid.appendChild(btn);
++        });
++      }
++
++      // 공통 버튼 생성기 — 페이/은행 그리드 모두 동일 규격 사용
++      // b.logo(공식 로고 경로)가 있으면 이미지, 없으면 브랜드 컬러 워드마크로 렌더링
++      function makeAppBtn(b) {
++        const btn = document.createElement('button');
++        btn.className = 'bank';
++
++        let icon;
++        if (b.logo) {
++          icon = document.createElement('img');
++          icon.className = 'ic-img';
++          icon.src = b.logo;
++          icon.alt = b.n;
++          icon.loading = 'lazy';
++          // 로고 파일이 없거나 로드 실패 시 워드마크로 자동 폴백 (버튼이 깨지지 않게)
++          icon.onerror = () => { icon.replaceWith(makeWordmark(b)); };
++        } else {
++          icon = makeWordmark(b);
++        }
++
++        const textWrap = document.createElement('span');
++        textWrap.className = 'bank-txt';
++        const nameEl = document.createElement('span');
++        nameEl.className = 'bank-n';
++        nameEl.textContent = b.n;
++        textWrap.appendChild(nameEl);
++        // 앱명과 기관명이 다를 때만 기관명 칩 표시 (예: 하나원큐 / 하나은행)
++        if (b.c && b.c !== b.n) {
++          const orgEl = document.createElement('span');
++          orgEl.className = 'bank-org';
++          orgEl.textContent = b.c;
++          textWrap.appendChild(orgEl);
++        }
++
++        btn.appendChild(icon);
++        btn.appendChild(textWrap);
++        btn.onclick = () => clickBank(d, b);
++        return btn;
++      }
++
++      function makeWordmark(b) {
++        const span = document.createElement('span');
++        span.className = 'ic' + (b.i.length >= 4 ? ' w4' : (b.i.length === 3 ? ' w3' : ''));
++        span.style.background = b.bg;
++        span.style.color = b.fg;
++        span.textContent = b.i;
++        return span;
++      }
++
++      // 간편 페이 그리드 (은행 위쪽 별도 그룹)
++      const payGrid = $('#pay-grid');
++      payGrid.innerHTML = '';
++      PAYS.forEach(b => {
++        if (b.toss && d.toss === false) return;
++        payGrid.appendChild(makeAppBtn(b));
++      });
++
+       // 은행 그리드
+       const grid = $('#bank-grid');
+       grid.innerHTML = '';
+       BANKS.forEach(b => {
+         if (b.toss && d.toss === false) return;
+-        const btn = document.createElement('button');
+-        btn.className = 'bank';
+-        const sizeCls = b.i.length >= 4 ? ' w4' : (b.i.length === 3 ? ' w3' : '');
+-        btn.innerHTML = `<span class="ic${sizeCls}" style="background:${b.bg}; color:${b.fg}">${b.i}</span><span>${b.n}</span>`;
+-        btn.onclick = () => clickBank(d, b);
+-        grid.appendChild(btn);
++        grid.appendChild(makeAppBtn(b));
+       });
+       
+       $('#success').classList.remove('show');
+@@ -866,6 +1199,61 @@
+     }
+     
+     // 앱 열기 시도 → 일정 시간 안에 화면 전환(hidden)이 감지 안 되면 "앱이 없다"고 판단 → 스토어 이동
++    // QR 이미지에서 URL을 읽어 "바로가기 링크" 텍스트에어리어에 자동 추가
++    function scanQrToLink(evt) {
++      const file = evt.target.files && evt.target.files[0];
++      evt.target.value = ''; // 같은 파일 재선택 시에도 change 이벤트가 다시 발생하도록 초기화
++      if (!file) return;
++
++      if (typeof jsQR !== 'function') {
++        toast('QR 인식 라이브러리 로드 실패 — 네트워크 확인 후 새로고침 해주세요');
++        return;
++      }
++
++      const img = new Image();
++      const reader = new FileReader();
++
++      reader.onload = (e) => { img.src = e.target.result; };
++      reader.onerror = () => toast('이미지 파일을 읽지 못했습니다');
++
++      img.onload = () => {
++        try {
++          const canvas = document.createElement('canvas');
++          canvas.width = img.naturalWidth;
++          canvas.height = img.naturalHeight;
++          const ctx = canvas.getContext('2d');
++          ctx.drawImage(img, 0, 0);
++          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
++          const code = jsQR(imgData.data, imgData.width, imgData.height);
++
++          if (!code || !code.data) {
++            toast('QR코드를 인식하지 못했습니다. 선명한 이미지로 다시 시도해주세요');
++            return;
++          }
++          if (!/^https?:\/\//i.test(code.data)) {
++            toast('QR 안에 웹 링크가 없습니다: ' + code.data.slice(0, 30));
++            return;
++          }
++
++          const label = (window.prompt('이 링크의 버튼 이름을 입력하세요 (예: 카카오페이, 페이팔)', '') || '').trim();
++          if (!label) {
++            toast('이름을 입력하지 않아 추가하지 않았습니다');
++            return;
++          }
++
++          const ta = $('#f-links');
++          ta.value = (ta.value ? ta.value.replace(/\n+$/, '') + '\n' : '') + `${label},${code.data}`;
++          toast(`✅ "${label}" 링크 추가됨`);
++        } catch (e) {
++          console.error('QR 디코딩 오류:', e);
++          toast('QR 인식 중 오류가 발생했습니다');
++        }
++      };
++      img.onerror = () => toast('이미지를 불러오지 못했습니다');
++
++      reader.readAsDataURL(file);
++    }
++
+     function openAppWithFallback(scheme, bank) {
+       let didHide = false;
+       const start = Date.now();
+@@ -892,15 +1280,28 @@
+       }, 1200);
+     }
+     
+-    // App Store로 이동: appId가 있으면 정확한 페이지로, 없으면 은행명 검색 결과로
++    // Android/iOS 판별 (User-Agent 기반 — 가장 널리 쓰이는 표준적 방법)
++    function isAndroid() {
++      return /android/i.test(navigator.userAgent);
++    }
++
++    // 스토어로 이동: Android는 Play스토어(pkg 있으면 정확한 페이지, 없으면 검색),
++    // iOS/기타는 App Store(appId 있으면 정확한 페이지, 없으면 검색)
+     function goToStore(bank) {
+       let storeUrl;
+-      if (bank.appId) {
+-        storeUrl = `https://apps.apple.com/kr/app/id${bank.appId}`;
++      const name = bank.c || bank.n;
++
++      if (isAndroid()) {
++        storeUrl = bank.pkg
++          ? `https://play.google.com/store/apps/details?id=${encodeURIComponent(bank.pkg)}`
++          : `https://play.google.com/store/search?q=${encodeURIComponent(name)}&c=apps`;
+       } else {
+-        storeUrl = `https://apps.apple.com/kr/search?term=${encodeURIComponent(bank.c || bank.n)}`;
++        storeUrl = bank.appId
++          ? `https://apps.apple.com/kr/app/id${bank.appId}`
++          : `https://apps.apple.com/kr/search?term=${encodeURIComponent(name)}`;
+       }
+-      toast(`${bank.c || bank.n} 앱이 없어 App Store로 이동합니다`);
++
++      toast(`${name} 앱이 없어 스토어로 이동합니다`);
+       setTimeout(() => {
+         window.location.href = storeUrl;
+       }, 600);
+@@ -950,11 +1351,14 @@
+       console.error('초기화 오류:', e);
+     }
+     
+-    // URL 파라미터에서 데이터 로드
++    // URL 파라미터에서 데이터 로드 (해시 우선, 쿼리 폴백)
+     try {
++      const hashMatch = location.hash.match(/landing=([^&]*)/);
+       const params = new URLSearchParams(location.search);
+-      if (params.has('landing')) {
+-        currentLandingData = b64url.dec(params.get('landing'));
++      const encoded = hashMatch ? hashMatch[1] : (params.has('landing') ? params.get('landing') : null);
++
++      if (encoded) {
++        currentLandingData = b64url.dec(encoded);
+         renderLanding();
+         switchTab('landing');
+       }

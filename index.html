@@ -523,7 +523,8 @@
           </div>
         </div>
         
-        <button class="btn btn-primary" onclick="createPage()">🎯 페이지 생성</button>
+        <button class="btn btn-primary" id="btn-save" onclick="createPage()">🎯 페이지 생성</button>
+        <button class="btn btn-ghost" id="btn-cancel-edit" onclick="cancelEdit()" style="display:none; margin-top:8px;">취소</button>
       </div>
       
       <!-- 결과 -->
@@ -751,8 +752,11 @@
         console.error('저장 오류:', e);
       }
       
+      const wasEditing = !!editingId;
       editingId = null;
       $('#form-title').textContent = '새 페이지 만들기';
+      $('#btn-save').textContent = '🎯 페이지 생성';
+      $('#btn-cancel-edit').style.display = 'none';
       
       // QR 표시
       const url = location.origin + location.pathname + '#landing=' + b64url.enc(data);
@@ -773,8 +777,21 @@
       
       $('#result-card').style.display = 'block';
       renderList();
-      toast('✅ 페이지 생성됨');
+      toast(wasEditing ? '💾 수정사항이 저장되었습니다' : '✅ 페이지 생성됨');
       $('#result-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // 수정 모드 취소 — 폼을 비우고 "새 페이지 만들기" 상태로 복귀 (저장하지 않음)
+    function cancelEdit() {
+      editingId = null;
+      $('#form-title').textContent = '새 페이지 만들기';
+      $('#btn-save').textContent = '🎯 페이지 생성';
+      $('#btn-cancel-edit').style.display = 'none';
+      ['f-title','f-sub','f-bg','f-bank','f-holder','f-account','f-amount','f-review','f-pickups','f-links']
+        .forEach(id => { $('#' + id).value = ''; });
+      $('#f-toss').checked = true;
+      $('#f-linktop').checked = false;
+      toast('수정을 취소했습니다');
     }
     
     // clipboard API가 막힌 웹뷰(카톡 인앱 등) 대비 execCommand 폴백
@@ -864,6 +881,8 @@
         const p = pages[idx];
         editingId = p.id;
         $('#form-title').textContent = '페이지 수정: ' + p.title;
+        $('#btn-save').textContent = '💾 수정 저장';
+        $('#btn-cancel-edit').style.display = 'inline-flex';
         $('#f-title').value = p.data.t;
         $('#f-sub').value = p.data.sub || '';
         $('#f-bg').value = p.data.bg || '';
@@ -912,10 +931,14 @@
     // 토스만 금액·계좌 자동입력 딥링크 지원. 나머지는 앱 열기 + 계좌 자동복사.
     // 애플페이는 국내 계좌송금(P2P) 미지원이라 제외.
     const PAYS = [
-      { n: '토스', c: '토스', bg: '#0064FF', fg: '#fff', i: 'toss', s: 'supertoss://', appId: '839333328', toss: true },
-      { n: '카카오페이', c: '카카오페이', bg: '#FFE500', fg: '#3C1E1E', i: 'pay', s: 'kakaopay://', appId: '1464496236' },
-      { n: '네이버페이', c: '네이버페이', bg: '#03C75A', fg: '#fff', i: 'N', s: 'naverpay://', appId: '1201267160' },
-      { n: '페이코', c: 'PAYCO', bg: '#E4032E', fg: '#fff', i: 'P', s: 'payco://', appId: '924292102' },
+      // pkg: Android 패키지명(Google Play 폴백용) — 토스페이먼츠 공식 블로그(2023.3) 기준 검증
+      // [검증필요] 표시 없는 appId/pkg는 App Store·Play 스토어 페이지에서 직접 확인함
+      { n: '토스', c: '토스', bg: '#0064FF', fg: '#fff', i: 'toss', s: 'supertoss://', appId: '839333328', pkg: 'viva.republica.toss', toss: true },
+      { n: '카카오페이', c: '카카오페이', bg: '#FFE500', fg: '#3C1E1E', i: 'pay', s: 'kakaopay://', appId: '1464496236', pkg: 'com.kakaopay.app' },
+      // 네이버페이는 별도 앱이 아니라 네이버 앱 내 기능 — 실행되는 앱은 "네이버"
+      // 스킴은 naverpay:// 아님. 토스페이먼츠 공식 자료 기준 naversearchthirdlogin:// (iOS), 패키지 com.nhn.android.search
+      { n: '네이버페이', c: '네이버 앱', bg: '#03C75A', fg: '#fff', i: 'N', s: 'naversearchthirdlogin://', appId: '393499958', pkg: 'com.nhn.android.search' },
+      { n: '페이코', c: 'PAYCO', bg: '#E4032E', fg: '#fff', i: 'P', s: 'payco://', appId: '924292102', pkg: 'com.nhnent.payapp' },
     ];
 
     const BANKS = [
@@ -925,11 +948,11 @@
       // logo: 공식 로고 이미지 경로(있으면 워드마크 대신 표시). 라이선스 확인 후 assets/banks/에 직접 배치할 것
 
       // === (1) 1금융권 인터넷전문은행 3사 ===
-      { n: '카카오뱅크', c: '카카오뱅크', bg: '#FFCC00', fg: '#3C1E1E', i: 'B', s: 'kakaobank://', appId: '1258016944' },
-      { n: '토스뱅크', c: '토스뱅크', bg: '#0064FF', fg: '#fff', i: 'toss', s: 'supertoss://', appId: '839333328', toss: true },
-      { n: '케이뱅크', c: '케이뱅크', bg: '#FF6600', fg: '#fff', i: 'K', s: 'kbanktoktok://', appId: '1178872627' },
+      { n: '카카오뱅크', c: '카카오뱅크', bg: '#FFCC00', fg: '#3C1E1E', i: 'B', s: 'kakaobank://', appId: '1258016944', pkg: 'com.kakaobank.channel' },
+      { n: '토스뱅크', c: '토스뱅크', bg: '#0064FF', fg: '#fff', i: 'toss', s: 'supertoss://', appId: '839333328', pkg: 'viva.republica.toss', toss: true },
+      { n: '케이뱅크', c: '케이뱅크', bg: '#FF6600', fg: '#fff', i: 'K', s: 'kbanktoktok://', appId: '1178872627', pkg: 'com.kbankwith.smartbank' },
 
-      // === (2) 1금융권 시중은행 (고객·계좌 수 상위 순) ===
+      // === (2) 1금융권 시중은행 (고객·계좌 수 상위 순) — scheme은 미검증[검증필요], appId는 확인됨 ===
       { n: 'KB스타뱅킹', c: '국민은행', bg: '#FFBC00', fg: '#60584C', i: 'KB', s: 'kbbank://', appId: '373742138' },
       { n: 'NH스마트뱅킹', c: '농협은행', bg: '#00A05B', fg: '#fff', i: 'NH', s: 'com.nonghyup.nhsmartbanking://', appId: '1444712671' },
       { n: '신한SOL뱅크', c: '신한은행', bg: '#0046FF', fg: '#fff', i: 'SOL', s: 'shinhan-sr-ansimclick://', appId: '357484932' },
@@ -940,13 +963,15 @@
       { n: 'i-ONE뱅크', c: '기업은행', bg: '#0069B3', fg: '#fff', i: 'IBK', s: 'IBKBANK://', appId: '1460543865' },
 
       // === (4) 2금융권 (상호금융·우체국예금) ===
+      // 우체국뱅킹: appId·pkg 확인됨(App Store/Play 등록정보). scheme(postbank://)은 미검증[검증필요] — 실패 시 스토어 폴백은 정확히 동작
+      { n: '우체국뱅킹', c: '우체국', bg: '#EE2E24', fg: '#fff', i: '우체국', s: 'postbank://', appId: '554920991', pkg: 'com.epost.psf.sdsi' },
       { n: 'MG더뱅킹', c: '새마을금고', bg: '#0068B7', fg: '#fff', i: 'MG', s: 'mgbank://' },
-      { n: '우체국뱅킹', c: '우체국', bg: '#EE2E24', fg: '#fff', i: '우체국', s: 'postbank://' },
       { n: 'Sh수협', c: '수협은행', bg: '#0066B2', fg: '#fff', i: 'Sh', s: 'suhyup://' },
       { n: '신협ON', c: '신협', bg: '#0067AC', fg: '#fff', i: '신협', s: 'cuon://' },
 
       // === (5) 지역은행 (광주 매장 기준 근접 순) ===
-      { n: '광주은행', c: '광주은행', bg: '#004A98', fg: '#fff', i: 'KJ', s: 'gwangju://' },
+      // 광주은행("광주 와뱅크"): appId·pkg 확인됨. scheme(gwangju://)은 미검증[검증필요] — 실패 시 스토어 폴백은 정확히 동작
+      { n: '광주은행', c: '광주은행', bg: '#004A98', fg: '#fff', i: 'KJ', s: 'gwangju://', appId: '1576149106', pkg: 'com.kjbank.asb.pbanking' },
       { n: '전북은행', c: '전북은행', bg: '#005CA3', fg: '#fff', i: 'JB', s: 'jbbank://' },
       { n: '부산은행', c: '부산은행', bg: '#D6001C', fg: '#fff', i: 'BNK', s: 'busanbank://' },
       { n: 'iM뱅크', c: 'iM뱅크', bg: '#008CD6', fg: '#fff', i: 'iM', s: 'dgbank://' },
@@ -1255,15 +1280,28 @@
       }, 1200);
     }
     
-    // App Store로 이동: appId가 있으면 정확한 페이지로, 없으면 은행명 검색 결과로
+    // Android/iOS 판별 (User-Agent 기반 — 가장 널리 쓰이는 표준적 방법)
+    function isAndroid() {
+      return /android/i.test(navigator.userAgent);
+    }
+
+    // 스토어로 이동: Android는 Play스토어(pkg 있으면 정확한 페이지, 없으면 검색),
+    // iOS/기타는 App Store(appId 있으면 정확한 페이지, 없으면 검색)
     function goToStore(bank) {
       let storeUrl;
-      if (bank.appId) {
-        storeUrl = `https://apps.apple.com/kr/app/id${bank.appId}`;
+      const name = bank.c || bank.n;
+
+      if (isAndroid()) {
+        storeUrl = bank.pkg
+          ? `https://play.google.com/store/apps/details?id=${encodeURIComponent(bank.pkg)}`
+          : `https://play.google.com/store/search?q=${encodeURIComponent(name)}&c=apps`;
       } else {
-        storeUrl = `https://apps.apple.com/kr/search?term=${encodeURIComponent(bank.c || bank.n)}`;
+        storeUrl = bank.appId
+          ? `https://apps.apple.com/kr/app/id${bank.appId}`
+          : `https://apps.apple.com/kr/search?term=${encodeURIComponent(name)}`;
       }
-      toast(`${bank.c || bank.n} 앱이 없어 App Store로 이동합니다`);
+
+      toast(`${name} 앱이 없어 스토어로 이동합니다`);
       setTimeout(() => {
         window.location.href = storeUrl;
       }, 600);
